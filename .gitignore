@@ -1,0 +1,39 @@
+# =============================================================================
+#  DANH SÁCH TRẮNG (allow-list) — CHỈ 5 FILE CHẠY WEB ĐƯỢC ĐẨY LÊN GITHUB
+# =============================================================================
+#  Vì sao làm ngược (chặn tất cả rồi mở lại từng file) thay vì liệt kê file
+#  cần chặn:
+#    - deploy.bat chạy "git add ." và repo đích là GitHub PUBLIC. Bất kỳ file
+#      nào tình cờ nằm trong thư mục này (file commissioning XML của trạm, file
+#      Excel/CSV xuất từ hệ thống mạng, ảnh chụp màn hình có số liệu nội bộ,
+#      file backup...) sẽ bị đẩy công khai.
+#    - Chặn theo danh sách đen chỉ an toàn với những đuôi file ĐÃ NGHĨ RA
+#      TRƯỚC; quên 1 đuôi là lộ dữ liệu, mà lộ rồi thì không thu hồi được
+#      (Google/người khác có thể đã lưu lại bản sao).
+#    - Ngược lại, nếu quên mở khóa 1 file web mới thì trang sẽ hỏng ngay và
+#      thấy liền — sai sót loại này sửa được, còn lộ dữ liệu thì không.
+#
+#  THÊM FILE MỚI CHO WEB (ảnh, font, script...): thêm 1 dòng "!ten-file" vào
+#  mục dưới đây, nếu không file sẽ KHÔNG được đẩy lên và web sẽ thiếu file đó.
+#  Trước khi xác nhận push, deploy.bat có in "git status --short" — nhìn lại
+#  danh sách đó để chắc chắn đúng những file mong muốn.
+# =============================================================================
+
+# 1) Chặn tất cả
+*
+
+# 2) Mở khóa đúng những gì cần để web chạy
+!.gitignore
+!index.html
+!app.js
+!config.js
+!styles.css
+
+# Ghi chú: các file nội bộ dưới đây nằm trong thư mục nhưng KHÔNG được đẩy lên
+# (đã bị chặn sẵn bởi quy tắc "*" ở trên, liệt kê ra đây cho dễ đối chiếu):
+#   Configuration_scf_*.xml   - cấu hình vô tuyến + tham số bảo mật BTS thật
+#   CLAUDE.md, Yeu cau.md     - tài liệu nội bộ
+#   deploy.bat, start-dev.bat - script chạy máy cá nhân
+#   tests/                    - bộ test tự động (chỉ chạy lúc dev, xem tests/README.md)
+#   .claude/                  - cấu hình công cụ cá nhân
+#   *.gsheet, Thumbs.db, .DS_Store

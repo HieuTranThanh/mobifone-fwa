@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>MobiFone — Bản đồ vùng phủ FWA (5G/4G)</title>
+  <meta name="description" content="Bản đồ vùng phủ FWA 5G/4G của MobiFone: tra cứu trạm gần nhất, bán kính vùng phủ ước tính và mức tải PRB trước khi tư vấn khách hàng.">
+  <!-- KHÔNG cho công cụ tìm kiếm lập chỉ mục: đây là công cụ NỘI BỘ cho nhân
+       viên kinh doanh, nội dung hiển thị là tọa độ trạm phát sóng và mức tải
+       mạng — không có lý do gì để nó xuất hiện trong kết quả tìm kiếm công
+       khai. Lưu ý: thẻ này chỉ chặn LẬP CHỈ MỤC, KHÔNG phải kiểm soát truy
+       cập — trang vẫn mở với bất kỳ ai biết URL (GitHub Pages là public). Xem
+       phần "Bảo mật" trong CLAUDE.md. -->
+  <meta name="robots" content="noindex, nofollow">
+  <!-- viewport-fit=cover: cho phép dùng env(safe-area-inset-*) để né notch/thanh
+       cử chỉ ở cạnh màn hình (iPhone có tai thỏ/Dynamic Island) — xem styles.css -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- Content-Security-Policy: liệt kê ĐÍCH DANH những nguồn trang được phép
+       tải/gọi. Nếu một thư viện CDN bị chiếm quyền và cố nạp thêm mã từ tên
+       miền lạ, hoặc có mã lạ được chèn vào trang, trình duyệt sẽ chặn thẳng.
+       Trang cố ý không có onclick/<script> nội tuyến nên script-src KHÔNG cần
+       'unsafe-inline' — đây là phần bảo vệ có giá trị nhất ở đây.
+       Ghi chú từng nguồn:
+         script/style unpkg.com   : Leaflet + Lucide (đã pin phiên bản + SRI)
+         style fonts.googleapis   : Plus Jakarta Sans
+         font  fonts.gstatic      : file font thật
+         img   tile.openstreetmap : ảnh nền bản đồ ({s}.tile...)
+         connect docs.google      : CSV danh sách trạm
+         connect nominatim        : tra cứu địa chỉ
+         connect script.google    : thống kê lượt truy cập
+         connect *.googleusercontent : BẮT BUỘC — cả 2 dịch vụ Google ở trên
+                                    đều chuyển hướng (302) sang tên miền này
+                                    (doc-xx-xx-sheets... / script...), và CSP
+                                    xét cả đích chuyển hướng chứ không chỉ URL
+                                    ban đầu. Thiếu dòng này thì web không tải
+                                    được dữ liệu trạm (đã kiểm chứng bằng test).
+       style-src vẫn phải chừa 'unsafe-inline': Leaflet dựng popup/tooltip bằng
+       chuỗi HTML có kèm thuộc tính style. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'none';
+    script-src 'self' https://unpkg.com;
+    style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com;
+    connect-src https://docs.google.com https://script.google.com https://*.googleusercontent.com https://nominatim.openstreetmap.org;
+    base-uri 'none';
+    form-action 'none'">
+  <!-- Favicon nhúng thẳng (data URI) — tránh 1 request 404 tới /favicon.ico -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230369A1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.9 16.1C1 12.2 1 5.8 4.9 1.9'/%3E%3Cpath d='M7.8 4.7a6.14 6.14 0 0 0-.8 7.5'/%3E%3Ccircle cx='12' cy='9' r='2'/%3E%3Cpath d='M16.2 4.8c2 2 2.26 5.11.8 7.47'/%3E%3Cpath d='M19.1 1.9a9.96 9.96 0 0 1 0 14.2'/%3E%3Cpath d='M9.5 18h5L17 22H7Z'/%3E%3C/svg%3E">
+
+  <!-- Thư viện ngoài tải từ CDN unpkg, PIN CHẶT theo phiên bản + kèm
+       Subresource Integrity (integrity/crossorigin): nếu file trên CDN bị đổi
+       nội dung (tài khoản CDN bị chiếm, tấn công chuỗi cung ứng), trình duyệt
+       sẽ TỪ CHỐI chạy thay vì chạy mã lạ. Khi nâng phiên bản thư viện, phải
+       tính lại hash:
+         curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A -->
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+
+  <!-- Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@1.26.0/dist/umd/lucide.js"
+          integrity="sha384-ijS2wOi5D2EXNNK5AP3xRzRq7Nv+lCdsDqFcPNLw21v9Lnx9ZeKcr5I1e8dO2I7A" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0F172A">
+</head>
+
+<body>
+
+<!-- ── TOP LOADER ───────────────────────────────────── -->
+<div id="topLoader" class="top-loader" aria-hidden="true"></div>
+
+<!-- ── TOAST NOTIFICATIONS ──────────────────────────── -->
+<!-- KHÔNG đặt role/aria-live ở container: mỗi toast tự mang role="alert"
+     (lỗi) hoặc role="status" (còn lại) khi được chèn vào, nên trình đọc màn
+     hình đã đọc đúng mức độ khẩn của từng thông báo. Để cả 2 tầng cùng là vùng
+     live sẽ khiến 1 thông báo bị đọc 2 lần và mất luôn phân biệt khẩn/không. -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- ── MAP ─────────────────────────────────────────── -->
+<div id="map"></div>
+
+<!-- ── INITIAL LOAD OVERLAY ─────────────────────────── -->
+<!-- Che map trong lúc tải dữ liệu trạm lần đầu (thay vì chỉ dựa vào thanh
+     loading mảnh 3px ở trên cùng — dễ bị bỏ sót, khiến map trống trơn cảm
+     giác như bị treo, nhất là trên mạng di động chậm). Ẩn đi ngay sau khi
+     loadData() xử lý xong (thành công hoặc rơi về cache) — xem app.js. -->
+<div id="initialLoadOverlay" class="initial-load-overlay" role="status" aria-live="polite">
+  <div class="initial-load-card">
+    <div class="initial-load-spinner" aria-hidden="true"></div>
+    <div class="initial-load-text">Đang tải dữ liệu trạm 5G/4G…</div>
+  </div>
+</div>
+
+<!-- ── BRANDING (bottom-left watermark) ────────────── -->
+<div class="branding">
+  <i data-lucide="building-2" class="branding-icon"></i>
+  Phòng Viễn thông
+</div>
+
+<!-- ── SIDEBAR PANEL ────────────────────────────────── -->
+<div class="control-box" id="controlBox">
+
+  <!-- Header — always visible -->
+  <div class="panel-header">
+    <div class="panel-brand">
+      <div class="panel-logo-bg">
+        <i data-lucide="radio-tower" class="panel-logo-icon-el"></i>
+      </div>
+      <div class="panel-brand-text">
+        <div class="panel-eyebrow">MobiFone · FWA 5G/4G</div>
+        <div class="panel-title-main" id="panelTitleMain">Tìm trạm 5G gần vị trí</div>
+      </div>
+    </div>
+    <button type="button" id="controlToggle" class="collapse-toggle" aria-expanded="true" aria-controls="panelBody" aria-label="Thu gọn bảng điều khiển">
+      <i data-lucide="chevron-up"></i>
+    </button>
+  </div>
+
+  <!-- Body — hidden when .collapsed -->
+  <div class="panel-body" id="panelBody">
+
+    <!-- Chọn lớp hiển thị: 5G hoặc 4G (chỉ 1 lớp tại 1 thời điểm).
+         role="radiogroup"/"radio" + aria-checked mô tả đúng bản chất "chọn 1
+         trong 2" ở đây; role="tab" trước đó ngụ ý có tabpanel tương ứng để
+         chuyển tiêu điểm bàn phím sang, nhưng bản đồ không phải tabpanel.
+         tabindex ở đây là trạng thái BAN ĐẦU của "roving tabindex" (chỉ mục
+         đang chọn nằm trong thứ tự Tab, đổi lựa chọn bằng phím mũi tên) —
+         app.js cập nhật lại mỗi lần đổi lớp, xem updateLayerUI(). -->
+    <div class="tech-switch" role="radiogroup" aria-label="Chọn lớp hiển thị">
+      <button type="button" class="tech-switch-btn active" data-tech="5G" role="radio" aria-checked="true" tabindex="0">5G</button>
+      <button type="button" class="tech-switch-btn" data-tech="4G" role="radio" aria-checked="false" tabindex="-1">4G</button>
+    </div>
+
+    <!-- Search: địa điểm / tọa độ -->
+    <div class="field-group">
+      <div class="search-row">
+        <div class="input-icon-wrap">
+          <label for="searchInput" class="sr-only">Tìm theo địa chỉ hoặc tọa độ (hoặc click đúp trên bản đồ)</label>
+          <i data-lucide="map-pin" class="field-icon"></i>
+          <!-- Bộ thuộc tính combobox: hộp gợi ý điều khiển được bằng ↑ ↓ Enter
+               Esc và trình đọc màn hình đọc đúng mục đang chọn (app.js tự cập
+               nhật aria-expanded/aria-activedescendant) -->
+          <input id="searchInput" class="panel-input" placeholder="Nhập tọa độ hoặc địa chỉ" autocomplete="off"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggestBox">
+        </div>
+        <button type="button" id="searchBtn" class="btn-search" title="Tìm kiếm" aria-label="Tìm kiếm">
+          <i data-lucide="search"></i>
+        </button>
+        <div id="suggestBox" class="suggest-box" role="listbox"></div>
+      </div>
+      <div class="field-hint">
+        <i data-lucide="mouse-pointer-click" class="field-hint-icon"></i>
+        Định vị hoặc click đúp trên bản đồ
+      </div>
+    </div>
+
+    <!-- Search: mã trạm 5G -->
+    <div class="search-row">
+      <div class="input-icon-wrap">
+        <label for="stationSearchInput" class="sr-only">Tìm theo mã trạm Site_ID</label>
+        <i data-lucide="hash" class="field-icon"></i>
+        <input id="stationSearchInput" class="panel-input" placeholder="Tìm theo mã trạm (Site_ID)" autocomplete="off"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="stationSuggestBox">
+      </div>
+      <div id="stationSuggestBox" class="suggest-box" role="listbox"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Action buttons -->
+    <div class="action-stack">
+      <button type="button" id="exportKmlBtn" class="btn-ghost" disabled>
+        <i data-lucide="download" class="btn-icon"></i>
+        <span id="exportKmlBtnLabel">Xuất KML trạm 5G</span>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Số trạm đang hiển thị (theo lớp 5G/4G đang chọn) -->
+    <div class="station-count-row">
+      <i data-lucide="bar-chart-3" class="station-count-icon"></i>
+      <span>Số trạm <span id="stationCountTechLabel">5G</span> đang hiển thị: <strong id="stationCountValue">—</strong></span>
+    </div>
+
+    <!-- Phân rã trạm theo mức tải PRB + checkbox bật/tắt từng mức trên bản đồ —
+         dùng chung cho CẢ 2 lớp (08/2026: 5G và 4G giờ tô màu/lọc theo PRB
+         giống hệt nhau, chỉ khác công thức tính bán kính). Số đếm là TỔNG số
+         trạm của mức đó trong LỚP ĐANG CHỌN (không đổi theo trạng thái
+         checkbox khác); checkbox chỉ quyết định mức đó có được vẽ lên bản đồ /
+         tính vào "Số trạm đang hiển thị" ở trên / xuất KML hay không — xem
+         prbBandFilter trong app.js. Đổi lớp 5G/4G thì checkbox RESET về tick
+         hết (switchActiveTech() gọi resetPrbBandFilter()) — mỗi lớp có trạng
+         thái lọc độc lập, tránh quên đang ẩn bớt trạm từ lớp trước đó. Màu
+         chấm lấy chung nguồn với chú giải bản đồ qua data-band-dot, không
+         viết cứng màu ở đây. -->
+    <!-- Khối lọc MẶC ĐỊNH THU GỌN (cả desktop lẫn di động): 5 dòng checkbox
+         chiếm ~205px trên di động / ~110px trên desktop trong khi phần lớn
+         lượt dùng không đụng tới bộ lọc — nhường diện tích đó cho bản đồ, mở
+         ra khi cần. Trạng thái ban đầu khai báo ngay ở markup (class
+         "collapsed" + aria-expanded="false"), app.js chỉ đồng bộ khi người
+         dùng bấm — cùng cách làm với .control-box/.legend.
+         #prbFilterBadge: khi có mức đang bị bỏ tick, badge hiện "n/5 mức" để
+         người dùng KHÔNG quên mình đang ẩn bớt trạm dù khối đã đóng lại. -->
+    <div class="prb-filter collapsed" id="prbFilter">
+      <button type="button" class="prb-filter-header" id="prbFilterToggle" aria-expanded="false" aria-controls="prbFilterBody">
+        <span class="prb-filter-title">Lọc theo mức tải PRB</span>
+        <span class="prb-filter-badge" id="prbFilterBadge" hidden></span>
+        <i data-lucide="chevron-down" class="prb-filter-chevron"></i>
+      </button>
+      <div class="prb-filter-body" id="prbFilterBody">
+        <label class="prb-filter-row">
+          <input type="checkbox" class="prb-filter-checkbox" data-prb-band="veryLow" checked>
+          <span class="eff-dot" data-band-dot="veryLow"></span>
+          <span class="prb-filter-label">Rất thấp</span>
+          <strong class="prb-filter-count" data-prb-count="veryLow">—</strong>
+        </label>
+        <label class="prb-filter-row">
+          <input type="checkbox" class="prb-filter-checkbox" data-prb-band="low" checked>
+          <span class="eff-dot" data-band-dot="low"></span>
+          <span class="prb-filter-label">Thấp</span>
+          <strong class="prb-filter-count" data-prb-count="low">—</strong>
+        </label>
+        <label class="prb-filter-row">
+          <input type="checkbox" class="prb-filter-checkbox" data-prb-band="medium" checked>
+          <span class="eff-dot" data-band-dot="medium"></span>
+          <span class="prb-filter-label">Trung bình</span>
+          <strong class="prb-filter-count" data-prb-count="medium">—</strong>
+        </label>
+        <label class="prb-filter-row">
+          <input type="checkbox" class="prb-filter-checkbox" data-prb-band="high" checked>
+          <span class="eff-dot" data-band-dot="high"></span>
+          <span class="prb-filter-label">Cao</span>
+          <strong class="prb-filter-count" data-prb-count="high">—</strong>
+        </label>
+        <label class="prb-filter-row">
+          <input type="checkbox" class="prb-filter-checkbox" data-prb-band="unknown" checked>
+          <span class="eff-dot" data-band-dot="unknown"></span>
+          <span class="prb-filter-label">Chưa có dữ liệu</span>
+          <strong class="prb-filter-count" data-prb-count="unknown">—</strong>
+        </label>
+      </div><!-- /.prb-filter-body -->
+    </div>
+
+  </div><!-- /.panel-body -->
+</div><!-- /.control-box -->
+
+<!-- ── LEGEND (bottom-right) ────────────────────────── -->
+<div class="legend coverage-legend" id="legendBox">
+  <button type="button" class="legend-header" id="legendToggle" aria-expanded="true" aria-controls="legendBody">
+    <span class="legend-title">Chú giải bản đồ</span>
+    <i data-lucide="chevron-up" class="legend-chevron"></i>
+  </button>
+  <div class="legend-body" id="legendBody">
+
+    <!-- 5G và 4G dùng CHUNG 1 khối chú giải (08/2026: cả 2 lớp giờ tô màu theo
+         % PRB Utilization giống hệt nhau, chỉ khác công thức tính bán kính) —
+         trước đây có 2 khối gần như trùng nhau (1 khối theo bán kính, 1 khối
+         theo PRB), gộp lại tránh lặp markup. Tiêu đề đổi theo lớp đang chọn
+         qua #legendPrbTechLabel (renderLegend()/updateLayerUI() trong app.js). -->
+    <div class="legend-block">
+      <div class="legend-block-title">Trạm <span id="legendPrbTechLabel">5G</span> — theo mức tải PRB</div>
+      <!-- Màu chấm & ngưỡng đều do app.js điền vào (renderLegend) từ đúng bảng
+           màu/tham số mà bản đồ đang dùng — xem data-band-dot / data-legend-threshold. -->
+      <div class="legend-list">
+        <div class="legend-row"><span class="eff-dot" data-band-dot="veryLow"></span><span>Rất thấp (&lt;<span data-legend-threshold="PRB_BAND_VERY_LOW_MAX"></span>%)</span></div>
+        <div class="legend-row"><span class="eff-dot" data-band-dot="low"></span><span>Thấp (<span data-legend-threshold="PRB_BAND_VERY_LOW_MAX"></span>–<span data-legend-threshold="PRB_BAND_LOW_MAX"></span>%)</span></div>
+        <div class="legend-row"><span class="eff-dot" data-band-dot="medium"></span><span>Trung bình (<span data-legend-threshold="PRB_BAND_LOW_MAX"></span>–<span data-legend-threshold="PRB_BAND_MEDIUM_MAX"></span>%)</span></div>
+        <div class="legend-row"><span class="eff-dot" data-band-dot="high"></span><span>Cao (&gt;<span data-legend-threshold="PRB_BAND_MEDIUM_MAX"></span>%)</span></div>
+        <div class="legend-row"><span class="eff-dot" data-band-dot="unknown"></span><span>Chưa có dữ liệu</span></div>
+      </div>
+      <div class="legend-note">
+        <i data-lucide="alert-triangle" class="legend-note-icon"></i>
+        % PRB là số liệu thật; bán kính phủ chỉ là ước tính lý thuyết — cần khảo sát thực tế trước khi cam kết tốc độ với khách hàng.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── LOCATE BUTTON (top-right) ────────────────────── -->
+<button type="button" id="locateBtn" class="locate-btn" title="Định vị tôi" aria-label="Định vị vị trí của tôi">
+  <i data-lucide="navigation-2"></i>
+</button>
+
+<!-- ── SCRIPTS ───────────────────────────────────────── -->
+<!-- config.js phải load TRƯỚC app.js (ghi đè tham số qua window.APP_CONFIG).
+     Mọi sự kiện được gắn trong app.js (bindEvents) — file HTML này cố ý KHÔNG
+     chứa inline onclick/script để logic nằm gọn 1 chỗ và trang tương thích
+     Content-Security-Policy chặt về sau. -->
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

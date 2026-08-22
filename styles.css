@@ -1,0 +1,1732 @@
+/* =====================================================
+   DESIGN TOKENS
+   ===================================================== */
+:root {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Neutrals — cool slate scale, anchors text/surfaces */
+  --ink-900: #0F172A;
+  --ink-700: #334155;
+  /* #64748B (cũ) chỉ đạt 4.23:1 trên nền --surface-muted — dưới ngưỡng WCAG AA
+     4.5:1 cho chữ thường. Ảnh hưởng đúng 2 chỗ chữ nhỏ QUAN TRỌNG: nhãn lớp
+     đang TẮT của công tắc 5G/4G và badge công nghệ trong hộp gợi ý. Đậm thêm
+     một nấc: 5.06:1 trên --surface-muted, 5.69:1 trên nền trắng — vẫn giữ đúng
+     vai trò "chữ phụ" so với --ink-900/--ink-700. */
+  --ink-500: #5A6879;
+  --ink-400: #8593A8;
+  --ink-300: #CBD5E1;
+  --surface: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-muted: #EEF2F7;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  /* Brand accent */
+  --accent: #0369A1;
+  --accent-hover: #075A8A;
+  --accent-active: #064A71;
+  --accent-subtle: #E8F3FA;
+  --accent-ring: rgba(3, 105, 161, 0.20);
+
+  /* Semantic */
+  --success: #16A34A;
+  --success-subtle: #EAFBF1;
+  --warning: #D97706;
+  --warning-subtle: #FEF6E7;
+  --danger: #DC2626;
+  --danger-subtle: #FDECEC;
+
+  /* Elevation — layered ambient + key shadow */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 40px rgba(15, 23, 42, 0.14);
+  --shadow-float: 0 0 0 1px rgba(15, 23, 42, 0.055), 0 6px 20px rgba(15, 23, 42, 0.10);
+  --shadow-float-hover: 0 0 0 1px rgba(15, 23, 42, 0.07), 0 10px 30px rgba(15, 23, 42, 0.15);
+
+  /* Radii */
+  --r-sm: 8px;
+  --r-md: 11px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================
+   RESET & BASE
+   ===================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Visually-hidden but accessible to assistive tech */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* =====================================================
+   MAP
+   ===================================================== */
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background: #eef1f4;
+}
+
+/* =====================================================
+   INITIAL LOAD OVERLAY (che map lúc tải dữ liệu trạm lần đầu)
+   ===================================================== */
+.initial-load-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle);
+  transition: opacity var(--dur-slow) var(--ease), visibility 0s linear var(--dur-slow);
+}
+
+.initial-load-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Overlay vẫn nằm trong DOM sau khi ẩn (chỉ opacity/visibility), mà CSS
+   animation KHÔNG tự dừng theo visibility — nếu không tắt ở đây, vòng xoay sẽ
+   quay mãi vô hình suốt phiên làm việc và ăn pin/CPU trên máy yếu. */
+.initial-load-overlay.hidden .initial-load-spinner {
+  animation: none;
+}
+
+.initial-load-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 32px;
+}
+
+.initial-load-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-subtle);
+  border-top-color: var(--accent);
+  animation: initial-load-spin 0.8s linear infinite;
+}
+
+@keyframes initial-load-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .initial-load-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.initial-load-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-500);
+  letter-spacing: 0.01em;
+}
+
+/* =====================================================
+   TOP LOADER (indeterminate progress while fetching sheet)
+   ===================================================== */
+.top-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2100;
+  overflow: hidden;
+  background: transparent;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease);
+  pointer-events: none;
+}
+
+.top-loader.active {
+  opacity: 1;
+}
+
+.top-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent) 45%, var(--accent) 55%, transparent);
+  animation: top-loader-sweep 1.1s ease-in-out infinite;
+  /* Thanh loading chỉ được ẩn bằng opacity, animation vẫn chạy nếu không tạm
+     dừng ở đây — tức là chạy suốt phiên dù người dùng không thấy gì. */
+  animation-play-state: paused;
+}
+
+.top-loader.active::before {
+  animation-play-state: running;
+}
+
+@keyframes top-loader-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-loader::before {
+    animation: none;
+    width: 100%;
+    transform: none;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+}
+
+/* =====================================================
+   SIDEBAR PANEL
+   ===================================================== */
+.control-box {
+  position: absolute;
+  /* env(safe-area-inset-*) né notch/tai thỏ trên iPhone (viewport-fit=cover
+     khai báo ở index.html) — cộng thêm vào offset gốc, = 14px trên thiết bị
+     thường (env trả về 0), tăng lên đúng bằng vùng an toàn trên thiết bị có notch. */
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  z-index: 1000;
+  width: 308px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  transition: box-shadow var(--dur-base) var(--ease);
+}
+
+.control-box:hover {
+  box-shadow: var(--shadow-float-hover);
+}
+
+/* Collapsed state — only header visible */
+.control-box.collapsed .panel-body {
+  display: none;
+}
+
+/* ── PANEL HEADER ── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 12px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-logo-bg {
+  width: 32px;
+  height: 32px;
+  background: var(--accent-subtle);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.panel-logo-icon-el {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--accent);
+  stroke-width: 2.25;
+}
+
+.panel-brand-text {
+  min-width: 0;
+}
+
+.panel-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-title-main {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--ink-500);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  flex-shrink: 0;
+}
+
+.collapse-toggle:hover {
+  background: var(--surface-muted);
+  color: var(--ink-900);
+}
+
+.collapse-toggle svg {
+  width: 16px !important;
+  height: 16px !important;
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.control-box.collapsed .collapse-toggle svg {
+  transform: rotate(180deg);
+}
+
+/* ── PANEL BODY ── */
+.panel-body {
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+/* =====================================================
+   TECH SWITCH (chọn lớp hiển thị 5G / 4G — chỉ 1 lớp/lúc)
+   ===================================================== */
+.tech-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surface-muted);
+  border-radius: var(--r-sm);
+}
+
+.tech-switch-btn {
+  flex: 1;
+  height: 32px;
+  border: none;
+  border-radius: calc(var(--r-sm) - 3px);
+  background: transparent;
+  color: var(--ink-500);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.tech-switch-btn:hover:not(.active) {
+  color: var(--ink-900);
+}
+
+.tech-switch-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* =====================================================
+   SEARCH ROW & INPUTS
+   ===================================================== */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  position: relative;
+}
+
+.field-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 1px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+.field-hint-icon {
+  width: 12px !important;
+  height: 12px !important;
+  flex-shrink: 0;
+  color: var(--ink-400);
+  stroke-width: 2.1;
+}
+
+/* ── STATION COUNT ── */
+.station-count-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 1px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+.station-count-row strong {
+  color: var(--ink-700);
+  font-weight: 700;
+}
+
+.station-count-icon {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+  color: var(--ink-400);
+  stroke-width: 2.1;
+}
+
+.input-icon-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.field-icon {
+  position: absolute;
+  left: 11px;
+  width: 15px !important;
+  height: 15px !important;
+  color: var(--ink-400);
+  pointer-events: none;
+  flex-shrink: 0;
+  z-index: 1;
+  stroke-width: 2.1;
+}
+
+.panel-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px 0 32px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-900);
+  background: var(--surface-subtle);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.panel-input:hover:not(:focus) {
+  border-color: var(--border-strong);
+}
+
+.panel-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3.5px var(--accent-ring);
+}
+
+.panel-input::placeholder {
+  /* Nhãn thật của 2 ô nhập nằm trong .sr-only nên placeholder là nhãn DUY NHẤT
+     người sáng mắt nhìn thấy — phải đạt tương phản của chữ thường. --ink-400
+     chỉ được 2.83:1 trên nền --surface-subtle. */
+  color: var(--ink-500);
+  font-size: 12.5px;
+}
+
+.panel-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--surface-muted);
+}
+
+/* Search button (icon only) */
+.btn-search {
+  width: 38px;
+  height: 38px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  flex-shrink: 0;
+}
+
+.btn-search svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.btn-search:hover {
+  background: var(--accent-hover);
+}
+
+.btn-search:active {
+  background: var(--accent-active);
+  transform: scale(0.94);
+}
+
+.btn-search:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-search:disabled:hover {
+  background: var(--accent);
+}
+
+/* =====================================================
+   ACTION BUTTONS
+   ===================================================== */
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-icon {
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0;
+  stroke-width: 2.1;
+}
+
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--surface-subtle);
+  color: var(--ink-700);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  text-align: center;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--accent-subtle);
+  border-color: #bcdcef;
+  color: var(--accent-hover);
+}
+
+.btn-ghost:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* =====================================================
+   PRB FILTER (dùng chung cho cả 2 lớp 5G/4G) — checkbox bật/tắt từng mức tải
+   trên bản đồ, reset về tick hết mỗi khi đổi lớp (xem resetPrbBandFilter()).
+   Cả khối THU GỌN ĐƯỢC và mặc định đóng — xem .prb-filter-header bên dưới.
+   ===================================================== */
+.prb-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Tiêu đề khối là 1 NÚT thu gọn/mở rộng (mặc định đóng — xem index.html):
+   5 dòng checkbox chiếm chỗ đáng kể trong panel mà phần lớn lượt dùng không
+   đụng tới. Cùng ngôn ngữ thao tác với chú giải bản đồ (.legend-header). */
+.prb-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 4px 4px 1px;
+  margin-bottom: 2px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.prb-filter-header:hover {
+  background: var(--surface-muted);
+}
+
+.prb-filter-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Nhắc "đang lọc" khi khối đã đóng lại — không có badge này, người dùng bỏ
+   tick 1 mức rồi đóng khối sẽ thấy "Số trạm đang hiển thị" ít đi mà không rõ
+   vì sao (app.js chỉ hiện badge khi có mức bị bỏ tick — xem updateLayerUI). */
+.prb-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.prb-filter-badge[hidden] {
+  display: none;
+}
+
+.prb-filter-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+  color: var(--ink-400);
+  stroke-width: 2.2;
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.prb-filter:not(.collapsed) .prb-filter-chevron {
+  transform: rotate(180deg);
+}
+
+.prb-filter.collapsed .prb-filter-body {
+  display: none;
+}
+
+.prb-filter-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.prb-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.prb-filter-row:hover {
+  background: var(--surface-muted);
+}
+
+/* Checkbox tự vẽ (appearance: none) thay vì để trình duyệt vẽ checkbox mặc
+   định — checkbox OS-native (vuông sắc cạnh, tick dày) lệch hẳn khỏi ngôn ngữ
+   thiết kế bo góc/mềm mại dùng xuyên suốt trang, là điểm dễ lộ nhất cho thấy
+   UI "chưa hoàn thiện tới từng chi tiết". Dấu tick vẽ bằng ::after (2 cạnh
+   border xoay 45°) thay vì ảnh/SVG để không tốn thêm request. */
+.prb-filter-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+  position: relative;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.prb-filter-checkbox:hover {
+  border-color: var(--accent);
+}
+
+.prb-filter-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.prb-filter-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1.5px;
+  width: 4px;
+  height: 7.5px;
+  border: solid #ffffff;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+
+.prb-filter-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prb-filter-label {
+  flex: 1;
+}
+
+.prb-filter-count {
+  color: var(--ink-500);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shared color dot (used in legend) */
+.eff-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.9);
+}
+
+/* =====================================================
+   LEGEND (bottom-right)
+   ===================================================== */
+.coverage-legend {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  background: var(--surface);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  max-width: 236px;
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  /* Padding dọc (thay vì margin) để MỞ RỘNG vùng chạm thật sự của nút thu
+     gọn/mở rộng legend — trước đây chỉ cao ~18px (bằng đúng dòng chữ),
+     dễ bấm trượt trên di động. -6px ở margin item đầu tiên bù lại phần
+     padding thêm để tổng khoảng cách thị giác không đổi. */
+  margin: -6px 0 3px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.legend-header:hover {
+  opacity: 0.75;
+}
+
+.legend-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.legend-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--ink-400);
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.coverage-legend.collapsed .legend-header {
+  margin-bottom: 0;
+}
+
+.coverage-legend.collapsed .legend-chevron {
+  transform: rotate(180deg);
+}
+
+.coverage-legend.collapsed .legend-body {
+  display: none;
+}
+
+/* Từ 08/2026 chú giải chỉ còn ĐÚNG 1 khối dùng chung cho cả 5G lẫn 4G (2 lớp
+   tô màu theo % PRB giống hệt nhau, chỉ tên công nghệ trên tiêu đề đổi theo
+   #legendPrbTechLabel) — nên không cần style phân cách giữa nhiều khối. */
+.legend-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-700);
+  margin-bottom: 8px;
+}
+
+.legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-700);
+  white-space: nowrap;
+}
+
+.legend-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 9px;
+  background: var(--warning-subtle);
+  border-radius: var(--r-sm);
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #7C4A03;
+  white-space: normal;
+}
+
+.legend-note-icon {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warning);
+  stroke-width: 2.2;
+}
+
+/* =====================================================
+   AUTOCOMPLETE / SUGGEST BOX
+   ===================================================== */
+.suggest-box {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  max-height: 208px;
+  overflow-y: auto;
+  z-index: 2000;
+  display: none;
+  box-shadow: var(--shadow-lg);
+  animation: suggest-in var(--dur-fast) var(--ease);
+}
+
+@keyframes suggest-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.suggest-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--surface-muted);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.suggest-item:last-child {
+  border-bottom: none;
+}
+
+/* .active = mục đang được chọn bằng phím ↑ ↓ (xem createSuggestBox trong
+   app.js) — dùng chung tô nền với trạng thái rê chuột để 2 cách thao tác nhìn
+   giống nhau. */
+.suggest-item:hover,
+.suggest-item.active {
+  background: var(--accent-subtle);
+}
+
+/* Gợi ý mã trạm (Site_ID): dòng đầu = badge công nghệ + mã trạm in đậm, dòng
+   dưới = địa chỉ màu mờ hơn (line-clamp 2 dòng) — trước đây badge/mã/địa chỉ
+   nối liền trên 1 dòng bằng text node, xuống dòng thì mép trái lởm chởm vì
+   dòng 2 tràn về sát lề trái thay vì thẳng hàng với dòng 1. */
+.suggest-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-700);
+  line-height: 1.4;
+}
+
+.suggest-item-head strong {
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.suggest-item:hover .suggest-item-head,
+.suggest-item.active .suggest-item-head,
+.suggest-item:hover .suggest-item-head strong,
+.suggest-item.active .suggest-item-head strong {
+  color: var(--accent-hover);
+}
+
+.suggest-item-address {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-500);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Gợi ý địa chỉ (Nominatim): icon ghim bản đồ + văn bản — cùng ngôn ngữ
+   icon-trước-nội-dung dùng cho field-icon/field-hint-icon trong panel, thay
+   vì đoạn chữ trần không có mốc thị giác nào để quét nhanh. */
+.suggest-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.suggest-item-row-icon {
+  width: 13px !important;
+  height: 13px !important;
+  margin-top: 2px;
+  color: var(--ink-400);
+  flex-shrink: 0;
+  stroke-width: 2.1;
+}
+
+.suggest-item:hover .suggest-item-row-icon,
+.suggest-item.active .suggest-item-row-icon {
+  color: var(--accent);
+}
+
+.suggest-item-row-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-700);
+}
+
+.suggest-item:hover .suggest-item-row-text,
+.suggest-item.active .suggest-item-row-text {
+  color: var(--accent-hover);
+}
+
+/* Badge công nghệ (5G/4G) trong gợi ý tìm theo Site_ID — màu trung tính có
+   chủ đích, không dùng lại tông màu đã gán nghĩa PRB/bán kính để tránh
+   chồng thêm 1 lớp nhầm lẫn màu sắc. */
+.badge-tech {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--ink-500);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Trạng thái rỗng — hiện khi đã gõ đủ ký tự nhưng không khớp trạm/địa chỉ
+   nào, thay vì lặng lẽ đóng hộp gợi ý (dễ khiến người dùng tưởng thao tác
+   gõ phím không có tác dụng). Không phải 1 lựa chọn (không role="option",
+   không click/hover), chỉ để đọc. */
+.suggest-empty {
+  padding: 14px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+/* =====================================================
+   LOCATE BUTTON (top-right)
+   ===================================================== */
+.locate-btn {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  z-index: 1001;
+  width: 42px;
+  height: 42px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-float);
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.locate-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--accent);
+  stroke-width: 2.2;
+}
+
+.locate-btn:hover {
+  box-shadow: var(--shadow-float-hover);
+  background: var(--accent-subtle);
+}
+
+.locate-btn:active {
+  transform: scale(0.93);
+}
+
+.locate-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.locate-btn:disabled:hover {
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+
+/* =====================================================
+   BRANDING (bottom-left)
+   ===================================================== */
+.branding {
+  position: fixed;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  z-index: 999;
+  background: var(--surface);
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-500);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-float);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.branding-icon {
+  width: 12px !important;
+  height: 12px !important;
+  color: var(--accent);
+  stroke-width: 2.3;
+}
+
+/* =====================================================
+   ICON TRẠM & HIỆU ỨNG NHẤP NHÁY — KHÔNG CÒN CSS Ở ĐÂY
+   Icon "trụ phát sóng" ở tâm mỗi vòng tròn từng là marker DOM tạo bằng
+   L.divIcon (class .station-tower-marker/.station-tower-icon) và nhấp nháy
+   bằng CSS animation `.blink`. Với >1200 trạm, chính >1200 phần tử DOM này là
+   nguyên nhân lag chính (đo được: kéo bản đồ ~126ms/frame), nên icon đã được
+   chuyển sang VẼ THẲNG VÀO CANVAS — không còn phần tử DOM nào để gắn CSS.
+   Kích thước/nét/đổ bóng/nhấp nháy giờ khai báo bằng hằng số trong app.js
+   (TOWER_ICON_SIZE_PX, TOWER_ICON_STROKE_WIDTH, TOWER_BLINK_*) — xem mục 7
+   "DỰNG TRẠM TRÊN BẢN ĐỒ" của app.js. Vòng tròn vùng phủ cũng vẽ bằng canvas
+   nên vẫn được làm nổi bằng cách tăng độ dày viền (setStationHighlight).
+   ===================================================== */
+
+/* =====================================================
+   TOAST NOTIFICATIONS (thay thế alert() mặc định)
+   ===================================================== */
+.toast-container {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(92vw, 420px);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  border-left: 4px solid var(--accent);
+  padding: 12px 12px 12px 13px;
+  animation: toast-in var(--dur-base) var(--ease);
+}
+
+.toast.leaving {
+  animation: toast-out var(--dur-fast) var(--ease) forwards;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 18px !important;
+  height: 18px !important;
+  margin-top: 1px;
+  color: var(--accent);
+  stroke-width: 2.2;
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-700);
+  white-space: pre-line;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  /* Nút đóng là control tương tác: WCAG 1.4.11 đòi tối thiểu 3:1. --ink-400
+     chỉ được ~2.9:1 trên nền toast. */
+  color: var(--ink-500);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.toast-close:hover {
+  background: var(--surface-muted);
+  color: var(--ink-900);
+}
+
+.toast-close svg {
+  width: 13px !important;
+  height: 13px !important;
+}
+
+.toast.toast-success { border-left-color: var(--success); }
+.toast.toast-success .toast-icon { color: var(--success); }
+.toast.toast-warning { border-left-color: var(--warning); }
+.toast.toast-warning .toast-icon { color: var(--warning); }
+.toast.toast-danger { border-left-color: var(--danger); }
+.toast.toast-danger .toast-icon { color: var(--danger); }
+
+/* =====================================================
+   LEAFLET POPUP — CARD DESIGN
+   ===================================================== */
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+
+/* Dòng ghi công OpenStreetMap — BẮT BUỘC theo điều khoản sử dụng tile OSM,
+   không được xóa. Giữ nhỏ gọn nhưng luôn đọc được (nền mờ), và các thành
+   phần nổi khác (legend/branding) được đẩy lên cao hơn dải này trên màn hình
+   nhỏ — xem khối @media (max-width: 640px) ở cuối file. */
+.leaflet-control-attribution {
+  font-size: 10px !important;
+  padding: 2px 7px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--ink-500) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--ink-500) !important;
+}
+
+.leaflet-popup {
+  max-width: 320px !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--r-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: 296px !important;
+  font-family: var(--font-sans) !important;
+}
+
+.leaflet-popup-close-button {
+  /* Mặc định của Leaflet (và --ink-400) chỉ ~2.75:1 — dưới ngưỡng 3:1 của
+     WCAG 1.4.11 cho control tương tác. */
+  color: var(--ink-500) !important;
+  font-size: 16px !important;
+  padding: 8px 9px !important;
+  z-index: 2;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--ink-900) !important;
+}
+
+.popup-card {
+  padding: 14px 15px 13px;
+}
+
+.popup-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.popup-head-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--accent-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-head-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--accent);
+  stroke-width: 2.3;
+}
+
+.popup-eyebrow {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+.popup-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.popup-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.popup-meta-row {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.popup-meta-row dt {
+  color: var(--ink-500);
+  font-weight: 600;
+}
+
+.popup-meta-row dd {
+  margin: 0;
+  color: var(--ink-900);
+}
+
+.popup-meta-row dd.popup-strong {
+  font-weight: 700;
+}
+
+.popup-meta-row a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.popup-meta-row a:hover {
+  text-decoration: underline;
+}
+
+.popup-hint {
+  color: var(--ink-500);
+  font-style: italic;
+}
+
+.popup-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 0 11px;
+}
+
+.popup-direction-row {
+  margin-top: 10px;
+}
+
+.popup-direction-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.popup-direction-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.popup-direction-link svg {
+  width: 13px !important;
+  height: 13px !important;
+  stroke-width: 2.3;
+}
+
+.popup-extra {
+  margin-top: 0;
+}
+
+.popup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background: var(--success-subtle);
+  color: #0F7A38;
+}
+
+.badge-warning {
+  background: var(--warning-subtle);
+  color: #92580A;
+}
+
+.badge-primary {
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+}
+
+.badge-danger {
+  background: var(--danger-subtle);
+  color: #A61B1B;
+}
+
+.badge-neutral {
+  background: var(--surface-muted);
+  color: var(--ink-500);
+}
+
+.popup-simple {
+  padding: 10px 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.popup-simple svg {
+  width: 15px !important;
+  height: 15px !important;
+  color: var(--accent);
+  stroke-width: 2.3;
+}
+
+/* =====================================================
+   RESPONSIVE — TABLET
+   ===================================================== */
+@media (max-width: 900px) {
+  .control-box {
+    width: 292px;
+  }
+}
+
+/* =====================================================
+   RESPONSIVE — MOBILE
+   ===================================================== */
+@media (max-width: 640px) {
+  .control-box {
+    width: calc(100vw - 76px);
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: calc(10px + env(safe-area-inset-left, 0px));
+    border-radius: var(--r-md);
+  }
+
+  .panel-header {
+    padding: 8px 8px 8px 11px;
+  }
+
+  /* Mật độ dọc trên di động: khoảng cách giữa các khối được siết lại (12px ->
+     9px) và đệm quanh panel giảm nhẹ — panel mở sẵn trước đây chiếm ~70%
+     chiều cao màn hình 390x844, gần như không còn thấy bản đồ. Ở đây chỉ siết
+     KHOẢNG TRỐNG, KHÔNG thu nhỏ vùng chạm: input/nút/công tắc vẫn giữ đúng
+     44px (xem khối ngay dưới). */
+  .panel-body {
+    padding: 10px;
+    gap: 9px;
+    max-height: calc(76vh - 60px);
+  }
+
+  .field-group {
+    gap: 5px;
+  }
+
+  .tech-switch {
+    gap: 2px;
+    padding: 2px;
+  }
+
+  /* Đường kẻ phân cách là 1 flex item nên khoảng trống 2 bên đã do `gap` của
+     .panel-body lo — margin riêng ở đây chỉ cộng thêm vào chỗ trống đó. */
+  .divider {
+    margin: 0;
+  }
+
+  /* 44px minimum touch target on touch-first viewports (WCAG target size /
+     Apple HIG) — panel-input/btn-search/collapse-toggle đã đúng chuẩn từ
+     trước; tech-switch-btn (công tắc 5G/4G, control được chạm nhiều nhất)
+     trước đây vẫn giữ nguyên 32px của desktop trên mobile — đã bổ sung. */
+  .panel-input,
+  .btn-search,
+  .collapse-toggle,
+  .tech-switch-btn {
+    height: 44px;
+  }
+
+  .field-icon {
+    left: 12px;
+  }
+
+  .panel-input {
+    padding-left: 34px;
+    font-size: 14px;
+  }
+
+  .btn-search {
+    width: 44px;
+  }
+
+  .btn-ghost {
+    height: 42px;
+    font-size: 13px;
+  }
+
+  .collapse-toggle {
+    width: 44px;
+  }
+
+  /* Danh sách gợi ý (địa chỉ / mã trạm) — mỗi dòng là 1 mục có thể chạm để
+     chọn, cần đạt tối thiểu 44px chiều cao trên mobile để tránh chạm nhầm
+     dòng liền kề (trước đây chỉ ~33px, đủ cho chuột nhưng chật cho ngón tay). */
+  .suggest-item {
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .suggest-item-head {
+    font-size: 13.5px;
+  }
+
+  .suggest-item-address {
+    font-size: 12px;
+  }
+
+  .suggest-item-row-text {
+    font-size: 13.5px;
+  }
+
+  /* Mỗi dòng checkbox lọc PRB cũng là 1 mục chạm được (label bao cả checkbox).
+     Không áp chuẩn 44px như .suggest-item — 5 dòng liền nhau ở 44px/dòng bị
+     phản ánh là quá thưa/tốn diện tích panel trên di động.
+     LƯU Ý (20/08/2026, phản ánh lần 2 kèm ảnh chụp thật): mốc 38px trước đó
+     dùng `min-height` — nhưng nội dung dòng (checkbox 17px + chữ ~15px) chỉ
+     cao ~15px, nên `align-items: center` chia phần dư thành khoảng TRẮNG VÔ
+     HÌNH bằng nhau phía trên/dưới mỗi dòng (~11.5px mỗi phía, đo được bằng
+     Chromium) — chính là các khoảng trắng người dùng khoanh đỏ. Đổi sang
+     `padding` (bỏ hẳn min-height): khoảng trắng nay BÁM SÁT nội dung thay vì
+     "lơ lửng" giữa 1 khung cố định, dòng thấp hẳn xuống ~15+12=27px nhưng vẫn
+     đủ chạm chắc tay (label bao trọn cả dòng rộng, không chỉ riêng ô vuông). */
+  .prb-filter-row {
+    padding: 6px 4px;
+  }
+
+  /* Nút mở/đóng khối lọc — vùng chạm đủ chuẩn 44px (dòng chữ chỉ cao ~14px) */
+  .prb-filter-header {
+    min-height: 44px;
+    padding: 4px 6px 4px 4px;
+    margin-bottom: 0;
+  }
+
+  .prb-filter-checkbox {
+    width: 17px;
+    height: 17px;
+  }
+
+  .prb-filter-checkbox:checked::after {
+    left: 4.5px;
+    top: 2px;
+    width: 5px;
+    height: 8.5px;
+  }
+
+  /* Nút đóng toast — mở rộng vùng chạm, không cần full 44px vì đây là hành
+     động phụ (toast tự đóng sau vài giây), nhưng 22px gốc quá nhỏ để chạm
+     chắc tay trên di động. */
+  .toast-close {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Văn bản cảnh báo/hướng dẫn nhỏ nhất trong panel — tăng nhẹ để đọc được
+     ngoài trời/ánh sáng mạnh, nơi nhân viên kinh doanh thường dùng điện thoại. */
+  .legend-note,
+  .field-hint {
+    font-size: 11.5px;
+  }
+
+  /* Trên màn hình hẹp, legend và branding nằm đúng dải chứa dòng ghi công
+     OpenStreetMap ở đáy map (bắt buộc phải đọc được) — đẩy cả 2 lên cao hơn
+     dải đó thay vì che mất. */
+  .coverage-legend {
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 12px;
+    max-width: 198px;
+  }
+
+  .branding {
+    left: calc(10px + env(safe-area-inset-left, 0px));
+    bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 10px;
+  }
+
+  .leaflet-bottom.leaflet-right {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .locate-btn {
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    width: 44px;
+    height: 44px;
+  }
+
+  .leaflet-popup-content {
+    width: 260px !important;
+  }
+
+  .popup-meta-row {
+    grid-template-columns: 74px 1fr;
+  }
+
+  .toast-container {
+    top: 12px;
+    width: calc(100vw - 24px);
+  }
+}
+
+/* =====================================================
+   THIẾT BỊ CHỈ CÓ CẢM ỨNG — KHÔNG GIỮ TRẠNG THÁI HOVER
+   -----------------------------------------------------
+   Trên điện thoại, trình duyệt GIỮ nguyên trạng thái :hover ở phần tử vừa
+   được chạm cho tới lần chạm kế tiếp ở chỗ khác — dòng vừa bấm cứ sáng nền
+   như đang "được chọn" (thấy rõ nhất ở khối lọc PRB: bấm mở khối xong thì
+   tiêu đề vẫn tô nền xám, dễ hiểu nhầm là trạng thái bật/tắt). Vô hiệu hóa
+   nền hover ở các control hay chạm; phản hồi khi chạm vẫn còn nguyên nhờ
+   :active và nhờ chính thay đổi trạng thái thật (tick / mở - đóng).
+   ===================================================== */
+@media (hover: none) {
+  .prb-filter-header:hover,
+  .prb-filter-row:hover,
+  .collapse-toggle:hover,
+  .toast-close:hover {
+    background: transparent;
+  }
+
+  .collapse-toggle:hover {
+    color: var(--ink-500);
+  }
+
+  .legend-header:hover {
+    opacity: 1;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--surface-subtle);
+    border-color: var(--border);
+    color: var(--ink-700);
+  }
+
+  .locate-btn:hover {
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+  }
+
+  .prb-filter-checkbox:hover {
+    border-color: var(--border-strong);
+  }
+
+  .prb-filter-checkbox:checked:hover {
+    border-color: var(--accent);
+  }
+}
+
+@media (max-width: 360px) {
+  .panel-title-main {
+    font-size: 12.5px;
+  }
+
+  .control-box {
+    width: calc(100vw - 64px);
+  }
+}
